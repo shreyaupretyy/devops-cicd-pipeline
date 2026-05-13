@@ -1,0 +1,76 @@
+---
+- name: Deploy To-Do App
+  hosts: app_servers
+  become: true
+  gather_facts: true
+
+  vars:
+    app_container_name: "todo-app"
+    app_port: "3000"
+    # These are overridden from Jenkinsfile --extra-vars
+    dockerhub_username: "your-dockerhub-username"
+    app_image_name: "your-repo-name"
+    image_tag: "latest"
+    image_name: "{{ dockerhub_username }}/{{ app_image_name }}:{{ image_tag }}"
+
+  tasks:
+    - name: Ensure Docker is running
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Log in to Docker Hub
+      community.docker.docker_login:
+        username: "{{ dockerhub_username }}"
+        password: "{{ dockerhub_password }}"
+      when: dockerhub_password is defined
+      no_log: true
+
+    - name: Pull latest image
+      community.docker.docker_image:
+        name: "{{ image_name }}"
+        source: pull
+        force_source: true
+
+    - name: Stop and remove existing container (zero-downtime swap)
+      community.docker.docker_container:
+        name: "{{ app_container_name }}"
+        state: absent
+        force_kill: true
+
+    - name: Start new container
+      community.docker.docker_container:
+        name: "{{ app_container_name }}"
+        image: "{{ image_name }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ app_port }}:3000"
+        env:
+          NODE_ENV: "production"
+          PORT: "3000"
+        healthcheck:
+          test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+          interval: 30000000000
+          timeout: 5000000000
+          retries: 3
+          start_period: 10000000000
+
+    - name: Wait for container to be healthy
+      community.docker.docker_container_info:
+        name: "{{ app_container_name }}"
+      register: container_info
+      until: container_info.container.State.Health.Status == "healthy"
+      retries: 10
+      delay: 5
+
+    - name: Remove dangling images to free disk space
+      community.docker.docker_prune:
+        images: true
+        images_filters:
+          dangling: true
+
+    - name: Confirm deployment
+      debug:
+        msg: "Deployed {{ image_name }} successfully on {{ inventory_hostname }}"
