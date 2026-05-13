@@ -1,0 +1,36 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.npm
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Test results
+coverage/
+test-results.txt
+junit.xml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# JetBrains / VSCode
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+*.tar
+
+# Ansible
+*.retry
