@@ -512,13 +512,22 @@ CMD ["node", "index.js"]
 
 \section{Jenkins CI/CD Pipeline}
 
-Figure \ref{fig:jenkins} shows the Jenkins web interface running locally on port 8080 after installation and initial configuration. The pipeline is defined in the \texttt{Jenkinsfile} at the root of the repository and is triggered via a GitHub webhook on every push to the \texttt{main} branch.
+Figure \ref{fig:jenkins} shows the Jenkins dashboard running locally on port 8080, with the \texttt{devops-cicd-pipeline} job listed and its most recent build status visible. The pipeline job was created pointing to the GitHub repository at branch \texttt{*/main}, so every push automatically triggers a new build.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{jenkins_dashboard.png}
-\caption{Jenkins web interface running on port 8080}
+\caption{Jenkins dashboard showing the devops-cicd-pipeline job}
 \label{fig:jenkins}
+\end{figure}
+
+Figure \ref{fig:jenkins_pipeline} shows the pipeline job detail page with the build history. Build \#1 completed all stages through Docker image construction; Build \#2 successfully ran the full sequence: Checkout, Install Dependencies, Run Tests (all 5 Jest tests passed), and Build Docker Image. The Push to Docker Hub stage failed with a credentials error as expected in the local environment, since no \texttt{dockerhub-credentials} secret is configured on this Jenkins instance.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{jenkins_pipeline_job.png}
+\caption{Pipeline job page showing build history and stage results}
+\label{fig:jenkins_pipeline}
 \end{figure}
 
 The declarative Jenkinsfile (Listing \ref{lst:jenkinsfile}) uses the \texttt{withCredentials} block to inject Docker Hub credentials at runtime without exposing them in the pipeline script.
