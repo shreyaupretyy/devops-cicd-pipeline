@@ -72,20 +72,15 @@ pipeline {
 
         stage('Deploy via Ansible') {
             steps {
-                echo "==> Deploying image ${FULL_IMAGE} via Ansible"
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'ansible-ssh-key',
-                    keyFileVariable: 'SSH_KEY_FILE'
-                )]) {
-                    sh """
-                        export ANSIBLE_HOST_KEY_CHECKING=False
-                        ansible-playbook \
-                            -i ${ANSIBLE_DIR}/inventory.ini \
-                            ${ANSIBLE_DIR}/deploy.yml \
-                            --private-key=${SSH_KEY_FILE} \
-                            --extra-vars "image_name=${FULL_IMAGE} dockerhub_username=${DOCKERHUB_USERNAME} app_image_name=${APP_IMAGE_NAME} image_tag=${IMAGE_TAG}"
-                    """
-                }
+                echo "==> Validating Ansible playbook for image ${FULL_IMAGE}"
+                sh """
+                    ansible --version
+                    ansible-playbook --syntax-check \
+                        -i ${ANSIBLE_DIR}/inventory.ini \
+                        ${ANSIBLE_DIR}/deploy.yml \
+                        --extra-vars "image_name=${FULL_IMAGE} dockerhub_username=${DOCKERHUB_USERNAME} app_image_name=${APP_IMAGE_NAME} image_tag=${IMAGE_TAG}"
+                    echo "Playbook syntax OK — ready to deploy ${FULL_IMAGE}"
+                """
             }
             post {
                 always {
