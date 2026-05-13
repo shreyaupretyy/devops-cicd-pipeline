@@ -379,17 +379,15 @@ Figure \ref{fig:architecture} illustrates the end-to-end architecture of the sys
     \node[block] (github)    {GitHub};
     \node[block, right=of github] (jenkins) {Jenkins};
     \node[block, right=of jenkins] (dockerbuild) {Docker\\ Build};
-    \node[block, right=of dockerbuild] (hub) {Docker Hub};
-    \node[block, below=of hub] (ansible) {Ansible};
+    \node[block, right=of dockerbuild] (ansible) {Ansible};
     \node[block, below=of ansible] (app) {Running App\\ :3000};
     \node[block, left=of app] (prometheus) {Prometheus\\ :9090};
     \node[block, left=of prometheus] (grafana) {Grafana\\ :3001};
 
     \draw[arrow] (github) -- node[above,font=\scriptsize]{webhook} (jenkins);
     \draw[arrow] (jenkins) -- node[above,font=\scriptsize]{build} (dockerbuild);
-    \draw[arrow] (dockerbuild) -- node[above,font=\scriptsize]{push} (hub);
-    \draw[arrow] (hub) -- node[right,font=\scriptsize]{pull} (ansible);
-    \draw[arrow] (ansible) -- node[right,font=\scriptsize]{deploy} (app);
+    \draw[arrow] (dockerbuild) -- node[above,font=\scriptsize]{deploy} (ansible);
+    \draw[arrow] (ansible) -- node[right,font=\scriptsize]{start} (app);
     \draw[arrow] (app) -- node[above,font=\scriptsize]{/metrics} (prometheus);
     \draw[arrow] (prometheus) -- node[above,font=\scriptsize]{datasource} (grafana);
 \end{tikzpicture}
@@ -698,11 +696,11 @@ The project successfully demonstrates all stated objectives with real, observabl
 \chapter{Conclusion}
 
 \section{Summary}
-This project designed and implemented a complete, production-aware CI/CD pipeline for a containerised Node.js To-Do application. The pipeline integrates GitHub, Jenkins, Docker, Docker Hub, Ansible, Prometheus, and Grafana into a cohesive automated system. Key achievements include:
+This project designed and implemented a complete, production-aware CI/CD pipeline for a containerised Node.js To-Do application. The pipeline integrates GitHub, Jenkins, Docker, Ansible, Prometheus, and Grafana into a cohesive automated system. Key achievements include:
 
 \begin{enumerate}
     \item Automated build and test execution on every code push, with test failures preventing deployment.
-    \item Reproducible Docker images pushed to a public registry and deployed via idempotent Ansible playbooks.
+    \item Reproducible Docker images built locally and deployed via idempotent Ansible playbooks.
     \item Real-time monitoring with pre-provisioned Grafana dashboards showing the Four Golden Signals.
     \item All configuration stored as code in version control, enabling auditability and reproducibility.
 \end{enumerate}
