@@ -1,0 +1,22 @@
+{
+  "name": "devops-todo-app",
+  "version": "1.0.0",
+  "description": "Simple To-Do app with Prometheus metrics",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest --forceExit --detectOpenHandles --rootDir=.."
+  },
+  "jest": {
+    "testMatch": ["**/tests/**/*.test.js"],
+    "modulePaths": ["<rootDir>/app/node_modules"]
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "prom-client": "^15.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  }
+}
