@@ -70,29 +70,6 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
-            steps {
-                echo "==> Pushing ${FULL_IMAGE} to Docker Hub"
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-credentials',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh """
-                        echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-                        docker push ${FULL_IMAGE}
-                        docker push ${LATEST_IMAGE}
-                        docker logout
-                    """
-                }
-            }
-            post {
-                always {
-                    echo "==> Push stage complete — status: ${currentBuild.currentResult}"
-                }
-            }
-        }
-
         stage('Deploy via Ansible') {
             steps {
                 echo "==> Deploying image ${FULL_IMAGE} via Ansible"

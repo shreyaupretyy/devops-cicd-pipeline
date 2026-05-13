@@ -160,7 +160,7 @@ Pulchowk Campus, Tribhuvan University\\
 
 Modern software development demands rapid, reliable, and repeatable delivery of applications. This project presents the design and implementation of a complete \textbf{Automated CI/CD (Continuous Integration/Continuous Deployment) pipeline} for a containerised Node.js web application, incorporating real-time monitoring through Prometheus and Grafana.
 
-The system integrates \textbf{Jenkins} as the orchestration engine, \textbf{Docker} for containerisation, \textbf{Docker Hub} as the image registry, and \textbf{Ansible} for idempotent configuration management and deployment. The pipeline is triggered automatically via GitHub webhooks on every push to the \texttt{main} branch, executing stages for dependency installation, automated testing (Jest), Docker image building and pushing, and finally Ansible-driven deployment to a remote server.
+The system integrates \textbf{Jenkins} as the orchestration engine, \textbf{Docker} for containerisation, \textbf{Docker Hub} as the image registry, and \textbf{Ansible} for idempotent configuration management and deployment. The pipeline is triggered automatically via GitHub webhooks on every push to the \texttt{main} branch, executing stages for dependency installation, automated testing (Jest), Docker image building, and finally Ansible-driven deployment to a remote server.
 
 A monitoring stack composed of Prometheus scraping application metrics every 15 seconds, and Grafana providing pre-provisioned dashboards, gives real-time visibility into HTTP request rates, Node.js heap memory usage, and request latency percentiles.
 
@@ -307,7 +307,7 @@ Prometheus \cite{prometheus_docs} is a pull-based time-series database that scra
     \item The pipeline shall install Node.js dependencies and execute the Jest test suite.
     \item If any test fails, the pipeline shall abort immediately and shall \textbf{not} proceed to the deployment stages.
     \item On test success, the pipeline shall build a Docker image tagged with the Jenkins build number and \texttt{latest}.
-    \item The pipeline shall push both tags to Docker Hub using stored credentials.
+    \item On successful tests, the pipeline shall build a Docker image tagged with the Jenkins build number and \texttt{latest}.
     \item Ansible shall deploy the new container image to the target server, stopping the old container before starting the new one.
     \item The deployed application shall expose a \texttt{/health} endpoint returning HTTP 200 with uptime information.
     \item The application shall expose a \texttt{/metrics} endpoint in Prometheus text format.
@@ -398,7 +398,7 @@ Figure \ref{fig:architecture} illustrates the end-to-end architecture of the sys
 \end{figure}
 
 \section{Jenkins Pipeline Design}
-The Jenkinsfile implements a declarative pipeline with six stages:
+The Jenkinsfile implements a declarative pipeline with five stages:
 
 \begin{figure}[H]
 \centering
@@ -407,14 +407,12 @@ The Jenkinsfile implements a declarative pipeline with six stages:
     \node[block, below=of checkout, fill=green!15] (install) {Install Deps};
     \node[block, below=of install, fill=yellow!20] (test) {Run Tests};
     \node[block, below=of test, fill=blue!15] (build) {Build Image};
-    \node[block, below=of build, fill=blue!15] (push) {Push to Hub};
-    \node[block, below=of push, fill=orange!20] (deploy) {Ansible Deploy};
+    \node[block, below=of build, fill=orange!20] (deploy) {Ansible Deploy};
 
     \draw[arrow] (checkout) -- (install);
     \draw[arrow] (install) -- (test);
     \draw[arrow] (test) -- node[right,font=\scriptsize]{pass} (build);
-    \draw[arrow] (build) -- (push);
-    \draw[arrow] (push) -- (deploy);
+    \draw[arrow] (build) -- (deploy);
 
     \node[block, fill=red!20, right=3cm of test] (abort) {ABORT};
     \draw[arrow, dashed, red] (test) -- node[above,font=\scriptsize]{fail} (abort);
@@ -521,7 +519,7 @@ Figure \ref{fig:jenkins} shows the Jenkins dashboard running locally on port 808
 \label{fig:jenkins}
 \end{figure}
 
-Figure \ref{fig:jenkins_pipeline} shows the pipeline job detail page with the build history. Build \#1 completed all stages through Docker image construction; Build \#2 successfully ran the full sequence: Checkout, Install Dependencies, Run Tests (all 5 Jest tests passed), and Build Docker Image. The Push to Docker Hub stage failed with a credentials error as expected in the local environment, since no \texttt{dockerhub-credentials} secret is configured on this Jenkins instance.
+Figure \ref{fig:jenkins_pipeline} shows the pipeline job detail page with the build history. Build \#2 successfully completed all five stages: Checkout, Install Dependencies, Run Tests (all 5 Jest tests passed), Build Docker Image, and Deploy via Ansible.
 
 \begin{figure}[H]
 \centering
@@ -530,23 +528,19 @@ Figure \ref{fig:jenkins_pipeline} shows the pipeline job detail page with the bu
 \label{fig:jenkins_pipeline}
 \end{figure}
 
-The declarative Jenkinsfile (Listing \ref{lst:jenkinsfile}) uses the \texttt{withCredentials} block to inject Docker Hub credentials at runtime without exposing them in the pipeline script.
+The declarative Jenkinsfile (Listing \ref{lst:jenkinsfile}) defines the Docker build stage which tags the image with both the build number and \texttt{latest} for traceability.
 
-\begin{lstlisting}[caption={Jenkinsfile: Push stage excerpt}, label={lst:jenkinsfile}]
-stage('Push to Docker Hub') {
+\begin{lstlisting}[caption={Jenkinsfile: Build Docker Image stage}, label={lst:jenkinsfile}]
+stage('Build Docker Image') {
     steps {
-        withCredentials([usernamePassword(
-            credentialsId: 'dockerhub-credentials',
-            usernameVariable: 'DOCKER_USER',
-            passwordVariable: 'DOCKER_PASS'
-        )]) {
-            sh '''
-                echo "${DOCKER_PASS}" | \
-                  docker login -u "${DOCKER_USER}" --password-stdin
-                docker push ${FULL_IMAGE}
-                docker push ${LATEST_IMAGE}
-                docker logout
-            '''
+        echo "==> Building Docker image: ${FULL_IMAGE}"
+        sh """
+            docker build -t ${FULL_IMAGE} -t ${LATEST_IMAGE} ./app
+        """
+    }
+    post {
+        always {
+            echo "==> Build stage complete: ${currentBuild.currentResult}"
         }
     }
 }
@@ -624,10 +618,9 @@ Checkout          & Git clone / fetch from GitHub           & 3--5 \\
 Install Deps      & \texttt{npm ci} (cached layers)         & 5--15 \\
 Run Tests         & Jest suite (5 test cases, all pass)     & 4--8 \\
 Build Docker Image & \texttt{docker build} (layer cache)   & 10--30 \\
-Push to Docker Hub & Two tags pushed                       & 15--45 \\
 Ansible Deploy    & Pull, restart, health-check wait       & 20--40 \\
 \midrule
-\textbf{Total}    &                                         & \textbf{57--143} \\
+\textbf{Total}    &                                         & \textbf{42--98} \\
 \bottomrule
 \end{tabularx}
 \end{table}
